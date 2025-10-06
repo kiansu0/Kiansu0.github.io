@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Safe Admin Panel — Blue (Admin Only)</title>
+<style>
+  :root{
+    --light-blue:#8fd3ff;
+    --blue:#1877F2;
+    --bg:#0b0b0c;
+    --card:#0f1720;
+    --muted:#9aa8b2;
+  }
+  *{box-sizing:border-box;font-family:Inter,Segoe UI,Arial,sans-serif;transition:all .3s ease;}
+  body{
+    margin:0;min-height:100vh;
+    display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(180deg,#ffffff 0%, #e9f6ff 100%);
+    color:#111827;padding:28px;
+  }
+  .admin-wrap{
+    background:var(--bg);border-radius:12px;padding:18px;color:#dbeafe;
+    box-shadow:0 8px 30px rgba(2,6,23,0.6);
+    max-width:700px;width:100%;animation:fadeIn .6s ease;
+  }
+  .admin-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+  .badge{background:linear-gradient(90deg,var(--light-blue),var(--blue));
+    color:#021129;padding:8px 12px;border-radius:999px;font-weight:700}
+  .list{margin-top:14px;max-height:420px;overflow:auto;padding-right:6px}
+  .entry{display:flex;align-items:center;justify-content:space-between;
+    padding:12px;border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);
+    margin-bottom:10px;border:1px solid rgba(255,255,255,0.03)}
+  .meta{display:flex;flex-direction:column;gap:4px;text-align:left}
+  .meta .email{font-weight:700;color:#e6f7ff}
+  .meta .sub{font-size:13px;color:#9fb8cc}
+  .remove-btn{background:transparent;border:1px solid rgba(255,255,255,0.12);padding:8px 10px;border-radius:8px;color:#ffdcdc;cursor:pointer}
+  .clear-all{background:#111827;border-radius:8px;padding:8px 12px;border:none;color:var(--light-blue);font-weight:700;cursor:pointer}
+  .note{font-size:13px;color:#9fb8cc;margin-top:10px}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+</style>
+</head>
+<body>
+
+<div class="admin-wrap" id="adminWrap">
+  <div class="admin-header">
+    <div class="badge">Admin</div>
+    <div><b>Blue — Admin Panel</b><br><small style="color:#94c9e9">Saved login demo</small></div>
+    <div><button id="logoutBtn">Logout</button><button id="clearBtn" class="clear-all">Clear All</button></div>
+  </div>
+  <div class="list" id="listArea"><div style="color:#74a9c7;padding:12px 0">No saved logins yet.</div></div>
+  <div class="note">Passwords masked for display.</div>
+</div>
+
+<script>
+const STORAGE_KEY='demo_logins_safe_v1';
+function readStore(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY))||[]}catch(e){return[]}}
+function writeStore(v){localStorage.setItem(STORAGE_KEY,JSON.stringify(v))}
+
+function mask(p) {
+  if(!p) return '';
+  return p + '';
+}
+
+const listArea=document.getElementById('listArea');
+const clearBtn=document.getElementById('clearBtn');
+const logoutBtn=document.getElementById('logoutBtn');
+
+function renderList(){
+  const arr = readStore();
+  listArea.innerHTML = '';
+  if(!arr.length){
+    listArea.innerHTML = '<div style="color:#74a9c7;padding:12px 0">No saved logins yet.</div>';
+    return;
+  }
+  arr.slice().reverse().forEach((r, i)=>{
+    const idx = arr.length - 1 - i;
+    const el = document.createElement('div');
+    el.className = 'entry';
+    el.innerHTML = `<div class="meta"><div class="email">${r.email}</div>
+                    <div class="sub">Password: ${mask(r.password)} · Token: ${r.token}</div>
+                    <div class="sub" style="font-size:12px;color:#6aa6c8">${r.time}</div></div>
+                    <button class="remove-btn" data-idx="${idx}">Remove</button>`;
+    listArea.appendChild(el);
+  });
+  Array.from(document.querySelectorAll('.remove-btn')).forEach(b=>{
+    b.onclick = ()=>{
+      const idx = parseInt(b.dataset.idx,10);
+      const a = readStore();
+      a.splice(idx,1);
+      writeStore(a);
+      renderList();
+    };
+  });
+}
+
+clearBtn.onclick = ()=>{
+  if(confirm('Clear all?')){
+    writeStore([]);
+    renderList();
+  }
+};
+
+logoutBtn.onclick = ()=>{ location.reload(); };
+
+// Listen for storage changes from other tabs/windows and update in real time
+window.addEventListener('storage', (e)=>{
+  if(e.key === STORAGE_KEY){
+    renderList();
+  }
+});
+
+// initial render
+renderList();
+</script>
+</body>
+</html>
